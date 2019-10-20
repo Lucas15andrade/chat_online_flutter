@@ -8,7 +8,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:image_picker/image_picker.dart';
 
-void main() async{
+void main() async {
   runApp(MyApp());
 }
 
@@ -36,7 +36,7 @@ Future<Null> _ensureLoggedIn() async {
 
   if (await auth.currentUser() == null) {
     GoogleSignInAuthentication credentials =
-    await googleSignIn.currentUser.authentication;
+        await googleSignIn.currentUser.authentication;
 
     await auth.signInWithCredential(GoogleAuthProvider.getCredential(
         idToken: credentials.idToken, accessToken: credentials.accessToken));
@@ -53,7 +53,8 @@ void _sendMessage({String text, String imgUrl}) {
     "text": text,
     "imgUrl": imgUrl,
     "senderName": googleSignIn.currentUser.displayName,
-    "senderPhotoUrl": googleSignIn.currentUser.photoUrl
+    "senderPhotoUrl": googleSignIn.currentUser.photoUrl,
+    "senderDate": new DateTime.now().toIso8601String()
   });
 }
 
@@ -63,9 +64,7 @@ class MyApp extends StatelessWidget {
     return MaterialApp(
       title: "Chat",
       debugShowCheckedModeBanner: false,
-      theme: Theme
-          .of(context)
-          .platform == TargetPlatform.iOS
+      theme: Theme.of(context).platform == TargetPlatform.iOS
           ? kThemeIos
           : kThemeDefault,
       home: ChatScreen(),
@@ -89,15 +88,16 @@ class _ChatScreenState extends State<ChatScreen> {
             title: Text("Chat"),
             centerTitle: true,
             elevation:
-            Theme
-                .of(context)
-                .platform == TargetPlatform.iOS ? 0.0 : 4.0,
+                Theme.of(context).platform == TargetPlatform.iOS ? 0.0 : 4.0,
           ),
           body: Column(
             children: <Widget>[
               Expanded(
                 child: StreamBuilder(
-                  stream: Firestore.instance.collection("messages").snapshots(),
+                  stream: Firestore.instance
+                      .collection("messages")
+                      .orderBy("senderDate")
+                      .snapshots(),
                   builder: (context, snapshot) {
                     switch (snapshot.connectionState) {
                       case ConnectionState.none:
@@ -107,12 +107,11 @@ class _ChatScreenState extends State<ChatScreen> {
                         );
                       default:
                         return ListView.builder(
-                            reverse: true,
+                            reverse: false,
                             itemCount: snapshot.data.documents.length,
                             itemBuilder: (context, index) {
-                              List r =
-                              snapshot.data.documents.reversed.toList();
-                              return ChatMessage(r[index].data);
+                              return ChatMessage(
+                                  snapshot.data.documents[index].data);
                             });
                     }
                   },
@@ -123,9 +122,7 @@ class _ChatScreenState extends State<ChatScreen> {
               ),
               Container(
                 decoration: BoxDecoration(
-                  color: Theme
-                      .of(context)
-                      .cardColor,
+                  color: Theme.of(context).cardColor,
                 ),
                 child: TextComposer(),
               )
@@ -154,16 +151,12 @@ class _TextComposerState extends State<TextComposer> {
   @override
   Widget build(BuildContext context) {
     return IconTheme(
-      data: IconThemeData(color: Theme
-          .of(context)
-          .accentColor),
+      data: IconThemeData(color: Theme.of(context).accentColor),
       child: Container(
         margin: const EdgeInsets.symmetric(horizontal: 8.0),
-        decoration: Theme
-            .of(context)
-            .platform == TargetPlatform.iOS
+        decoration: Theme.of(context).platform == TargetPlatform.iOS
             ? BoxDecoration(
-            border: Border(top: BorderSide(color: Colors.grey[200])))
+                border: Border(top: BorderSide(color: Colors.grey[200])))
             : null,
         child: Row(
           children: <Widget>[
@@ -171,14 +164,17 @@ class _TextComposerState extends State<TextComposer> {
               icon: Icon(Icons.photo_camera),
               onPressed: () async {
                 await _ensureLoggedIn();
-                File image = await ImagePicker.pickImage(
-                    source: ImageSource.camera);
+                File image =
+                    await ImagePicker.pickImage(source: ImageSource.camera);
                 if (image == null) {
                   return null;
                 }
 
-                StorageUploadTask task = FirebaseStorage.instance.ref().child(googleSignIn.currentUser.id.toString() +
-                    DateTime.now().millisecondsSinceEpoch.toString()).putFile(image);
+                StorageUploadTask task = FirebaseStorage.instance
+                    .ref()
+                    .child(googleSignIn.currentUser.id.toString() +
+                        DateTime.now().millisecondsSinceEpoch.toString())
+                    .putFile(image);
                 StorageTaskSnapshot taskSnapshot = await task.onComplete;
                 String url = await taskSnapshot.ref.getDownloadURL();
                 _sendMessage(imgUrl: url);
@@ -188,7 +184,7 @@ class _TextComposerState extends State<TextComposer> {
               child: TextField(
                 controller: _textController,
                 decoration:
-                InputDecoration.collapsed(hintText: "Enviar uma mensagem!"),
+                    InputDecoration.collapsed(hintText: "Enviar uma mensagem!"),
                 onChanged: (text) {
                   setState(() {
                     _isCompose = text.length > 0;
@@ -202,25 +198,23 @@ class _TextComposerState extends State<TextComposer> {
             ),
             Container(
                 margin: const EdgeInsets.symmetric(horizontal: 4.0),
-                child: Theme
-                    .of(context)
-                    .platform == TargetPlatform.iOS
+                child: Theme.of(context).platform == TargetPlatform.iOS
                     ? CupertinoButton(
-                    child: Text("Enviar"),
-                    onPressed: _isCompose
-                        ? () {
-                      _handleSubmitted(_textController.text);
-                      _reset();
-                    }
-                        : null)
+                        child: Text("Enviar"),
+                        onPressed: _isCompose
+                            ? () {
+                                _handleSubmitted(_textController.text);
+                                _reset();
+                              }
+                            : null)
                     : IconButton(
-                    icon: Icon(Icons.send),
-                    onPressed: _isCompose
-                        ? () {
-                      _handleSubmitted(_textController.text);
-                      _reset();
-                    }
-                        : null))
+                        icon: Icon(Icons.send),
+                        onPressed: _isCompose
+                            ? () {
+                                _handleSubmitted(_textController.text);
+                                _reset();
+                              }
+                            : null))
           ],
         ),
       ),
@@ -252,18 +246,15 @@ class ChatMessage extends StatelessWidget {
               children: <Widget>[
                 Text(
                   data["senderName"],
-                  style: Theme
-                      .of(context)
-                      .textTheme
-                      .subhead,
+                  style: Theme.of(context).textTheme.subhead,
                 ),
                 Container(
                   margin: const EdgeInsets.only(top: 10.0),
                   child: data["imgUrl"] != null
                       ? Image.network(
-                    data["imgUrl"],
-                    width: 250,
-                  )
+                          data["imgUrl"],
+                          width: 250,
+                        )
                       : Text(data["text"]),
                 )
               ],
